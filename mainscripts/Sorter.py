@@ -23,9 +23,6 @@ from facelib import LandmarksProcessor
 
 class BlurEstimatorSubprocessor(Subprocessor):
     class Cli(Subprocessor.Cli):
-        def on_initialize(self, client_dict):
-            self.estimate_motion_blur = client_dict['estimate_motion_blur']
-        
         #override
         def process_data(self, data):
             filepath = Path( data[0] )
@@ -39,14 +36,8 @@ class BlurEstimatorSubprocessor(Subprocessor):
                 
                 face_mask = LandmarksProcessor.get_image_hull_mask (image.shape, dflimg.get_landmarks())
                 image = (image*face_mask).astype(np.uint8)
-                
-                
-                if self.estimate_motion_blur:
-                    value = cv2.Laplacian(image, cv2.CV_64F, ksize=11).var()    
-                else:
-                    value = estimate_sharpness(image)
-                
-                return [ str(filepath), value ]
+            
+                return [ str(filepath), estimate_sharpness(image) ]
 
 
         #override
@@ -55,9 +46,8 @@ class BlurEstimatorSubprocessor(Subprocessor):
             return data[0]
 
     #override
-    def __init__(self, input_data, estimate_motion_blur=False ):
+    def __init__(self, input_data ):
         self.input_data = input_data
-        self.estimate_motion_blur = estimate_motion_blur
         self.img_list = []
         self.trash_img_list = []
         super().__init__('BlurEstimator', BlurEstimatorSubprocessor.Cli, 60)
@@ -76,7 +66,7 @@ class BlurEstimatorSubprocessor(Subprocessor):
         io.log_info(f'Running on {cpu_count} CPUs')
 
         for i in range(cpu_count):
-            yield 'CPU%d' % (i), {}, {'estimate_motion_blur':self.estimate_motion_blur}
+            yield 'CPU%d' % (i), {}, {}
 
     #override
     def get_data(self, host_dict):
@@ -113,18 +103,7 @@ def sort_by_blur(input_path):
     img_list = sorted(img_list, key=operator.itemgetter(1), reverse=True)
 
     return img_list, trash_img_list
-    
-def sort_by_motion_blur(input_path):
-    io.log_info ("Sorting by motion blur...")
 
-    img_list = [ (filename,[]) for filename in pathex.get_image_paths(input_path) ]
-    img_list, trash_img_list = BlurEstimatorSubprocessor (img_list, estimate_motion_blur=True).run()
-
-    io.log_info ("Sorting...")
-    img_list = sorted(img_list, key=operator.itemgetter(1), reverse=True)
-
-    return img_list, trash_img_list
-    
 def sort_by_face_yaw(input_path):
     io.log_info ("Sorting by face yaw...")
     img_list = []
@@ -897,7 +876,6 @@ def final_process(input_path, img_list, trash_img_list):
 
 sort_func_methods = {
     'blur':        ("blur", sort_by_blur),
-    'motion-blur': ("motion_blur", sort_by_motion_blur),
     'face-yaw':    ("face yaw direction", sort_by_face_yaw),
     'face-pitch':  ("face pitch direction", sort_by_face_pitch),
     'face-source-rect-size' : ("face rect size in source image", sort_by_face_source_rect_size),
@@ -925,7 +903,7 @@ def main (input_path, sort_by_method=None):
             io.log_info(f"[{i}] {desc}")
 
         io.log_info("")
-        id = io.input_int("", 5, valid_list=[*range(len(key_list))] )
+        id = io.input_int("", 4, valid_list=[*range(len(key_list))] )
 
         sort_by_method = key_list[id]
     else:

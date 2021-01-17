@@ -87,7 +87,6 @@ class Devices(object):
         os.environ['NN_DEVICES_INITIALIZED'] = '1'
         os.environ['NN_DEVICES_COUNT'] = '0'
         
-        os.environ['CUDA_​CACHE_​MAXSIZE'] = '2147483647'
         min_cc = int(os.environ.get("TF_MIN_REQ_CAP", 35))
         libnames = ('libcuda.so', 'libcuda.dylib', 'nvcuda.dll')
         for libname in libnames:
